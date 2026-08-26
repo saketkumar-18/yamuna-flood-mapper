@@ -1,0 +1,7 @@
+data/cache/
+data/qa_*.png
+data/item_sample.json
+data/events/*/qa_triptych.png
+scripts/__pycache__/
+tests/
+.github/

@@ -16,11 +16,10 @@ AOI = {"type": "Polygon", "coordinates": [[
 ]]}
 ROOT = Path(__file__).resolve().parents[1]
 
-# (event_id, label, [event scene date-time prefixes])
+# (event_id, label, [event scene date-time prefixes]; one per acquisition)
 EVENTS = [
     ("flood-2023-07", "July 2023 record flood — Yamuna at 208.66 m at Old Railway Bridge",
-     ["20230712T005233", "20230716T125521", "20230716T125550", "20230724",
-      "20230728T125521", "20230728T125550"]),
+     ["20230712", "20230716", "20230724", "20230728"]),
     ("monsoon-2026-08", "Monsoon 2026 — latest Sentinel-1A/1D passes over Delhi",
      ["20260703", "20260727", "20260820"]),
 ]
@@ -49,7 +48,7 @@ def auto_baseline(year: int, per_orbit: int = 4) -> list[str]:
         except Exception:
             return "?"
 
-    scenes = search(year, "02-01", "03-31")
+    scenes = search(year, "01-15", "04-10")
     lo, bo, hi_, up = 77.04, 28.42, 77.39, 28.74
 
     def contains(b):
@@ -64,9 +63,9 @@ def auto_baseline(year: int, per_orbit: int = 4) -> list[str]:
     for orb, ss in sorted(by_orbit.items()):
         ss.sort(key=lambda x: x["dt"])
         sel = [ss[0], ss[len(ss) // 3], ss[2 * len(ss) // 3], ss[-1]]
-        picks += list(dict.fromkeys(p["id"] for p in sel))[:per_orbit]
-        print(f"  baseline[{orb}] {year}: "
-              f"{[p['dt'][5:10] for p in dict.fromkeys(sel).keys()]}")
+        sel_ids = list(dict.fromkeys(p["id"] for p in sel))
+        picks += sel_ids[:per_orbit]
+        print(f"  baseline[{orb}] {year}: {[s['dt'][5:16] for s in sel]}")
     if not picks:
         raise RuntimeError(f"no full-cover dry-season scenes for {year}")
     return picks

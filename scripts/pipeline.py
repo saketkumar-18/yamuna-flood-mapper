@@ -57,20 +57,34 @@ Z_LO, Z_HI = (-3.0, 12.0)  # Otsu search range on z
 Z_CLAMP = (1.5, 8.0)      # final clamp on chosen z threshold
 VH_ABS_CAP_DB = -17.0     # event pixel must be at least this dark
 MIN_POLY_M2 = 5000.0      # drop flood polygons < 0.5 ha
-FETCH_WORKERS = 3
+FETCH_WORKERS = 2
 READ_ATTEMPTS = 4
+
+
+def _retry_http(fn, what: str, attempts: int = 4):
+    last = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as e:  # flaky links: SSL EOFs, resets, timeouts
+            last = e
+            time.sleep(3 * (i + 1))
+    raise RuntimeError(f"{what} failed after {attempts} attempts") from last
 
 
 def _sas_token() -> str:
     tok, exp = _SAS_CACHE.get("pc", ("", 0))
     if exp > time.time() + 300:
         return tok
-    r = httpx.get(
-        "https://planetarycomputer.microsoft.com/api/sas/v1/token/sentinel-1-rtc",
-        timeout=60,
-    )
-    r.raise_for_status()
-    j = r.json()
+
+    def _do():
+        r = httpx.get(
+            "https://planetarycomputer.microsoft.com/api/sas/v1/token/"
+            "sentinel-1-rtc", timeout=60)
+        r.raise_for_status()
+        return r.json()
+
+    j = _retry_http(_do, "sas-token")
     tok = j["token"]
     exp = time.mktime(time.strptime(j["msft:expiry"], "%Y-%m-%dT%H:%M:%SZ")) - 6 * 3600
     _SAS_CACHE["pc"] = (tok, exp)
@@ -78,9 +92,12 @@ def _sas_token() -> str:
 
 
 def get_item(item_id: str) -> dict:
-    r = httpx.get(f"{STAC}/collections/{COLLECTION}/items/{item_id}", timeout=60)
-    r.raise_for_status()
-    return r.json()
+    def _do():
+        r = httpx.get(f"{STAC}/collections/{COLLECTION}/items/{item_id}",
+                      timeout=60)
+        r.raise_for_status()
+        return r.json()
+    return _retry_http(_do, f"item:{item_id[:40]}")
 
 
 # --------------------------------------------------------------- scene fetch
@@ -253,7 +270,9 @@ def permanent_water(bases: list[BaselineStats]) -> np.ndarray:
         spread = np.nanmax(np.where(vmask, stack, np.nan), axis=0) - \
             np.nanmin(np.where(vmask, stack, np.nan), axis=0)
     fin = np.isfinite(comp) & np.isfinite(spread)
-    thr = otsu_threshold(comp[fin], -28.0, -8.0)
+    # bounded search: water sits near -20 dB in VH means; an unbounded range
+    # lets Otsu split the LAND population instead
+    thr = otsu_threshold(comp[fin], -26.0, -15.0)
     perm = fin & (comp < thr) & (spread < 6.0)
     struct = np.ones((3, 3), dtype=bool)
     perm = binary_closing(perm, structure=struct, iterations=1)
@@ -298,15 +317,15 @@ def vectorize(mask: np.ndarray, min_area_m2: float = MIN_POLY_M2) -> list[dict]:
 
 
 # ------------------------------------------------------------------ WorldPop
-WORLDPOP_URL = (
-    "https://data.worldpop.org/GIS/Population/Global_2000_2020/2020/IND/"
-    "ind_ppp_2020_constrained.tif"
-)
+# Meta Data-for-Good HRSL population (CC-BY 4.0): global COG mosaic on S3,
+# ranged reads supported -> windowed reads work with no download
+POP_URL = ("https://dataforgood-fb-data.s3.amazonaws.com/"
+           "hrsl-cogs/hrsl_general/hrsl_general-latest.vrt")
 
 
 def population_exposure(flood_mask: np.ndarray) -> dict | None:
     try:
-        with rasterio.open(f"/vsicurl/{WORLDPOP_URL}") as src:
+        with rasterio.open(f"/vsicurl/{POP_URL}") as src:
             b = CORRIDOR_BOUNDS
             win = rasterio.windows.from_bounds(b[0], b[1], b[2], b[3],
                                                src.transform)
@@ -324,7 +343,7 @@ def population_exposure(flood_mask: np.ndarray) -> dict | None:
             "exposed_people": int(round(exposed)),
             "aoi_population": int(round(total)),
             "exposed_pct": round(100 * exposed / max(total, 1), 3),
-            "source": "WorldPop 2020 constrained (100 m), CC-BY 4.0",
+            "source": "Meta Data for Good HRSL population v1.5 (~30 m), CC-BY 4.0",
         }
     except Exception as e:
         return {"error": str(e)[:200]}
@@ -387,7 +406,7 @@ def process_event(spec: EventSpec, out_dir: Path,
             flood_total |= flood
             diag.update({"item": iid, "datetime": dt})
             diags.append(diag)
-        evt_meta[orb] = ids_ok
+        evt_meta[orb] = [{"id": i, "datetime": got[i][2]} for i in ids_ok]
         failed_items += [i for i in ids if i not in got]
 
     perm = permanent_water(bases)

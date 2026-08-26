@@ -1,0 +1,116 @@
+{
+  "event_id": "flood-2023-07",
+  "label": "July 2023 record flood \u2014 Yamuna at 208.66 m at Old Railway Bridge",
+  "baseline_items_by_orbit": {
+    "ascending": [
+      "S1A_IW_GRDH_1SDV_20230117T125515_20230117T125544_046824_059D4D_rtc",
+      "S1A_IW_GRDH_1SDV_20230210T125515_20230210T125544_047174_05A903_rtc",
+      "S1A_IW_GRDH_1SDV_20230306T125515_20230306T125544_047524_05B4E7_rtc",
+      "S1A_IW_GRDH_1SDV_20230330T125515_20230330T125544_047874_05C0AC_rtc"
+    ],
+    "descending": [
+      "S1A_IW_GRDH_1SDV_20230125T005228_20230125T005253_046933_05A0F3_rtc",
+      "S1A_IW_GRDH_1SDV_20230218T005227_20230218T005252_047283_05ACB0_rtc",
+      "S1A_IW_GRDH_1SDV_20230314T005227_20230314T005252_047633_05B88A_rtc",
+      "S1A_IW_GRDH_1SDV_20230407T005228_20230407T005253_047983_05C455_rtc"
+    ]
+  },
+  "event_items_by_orbit": {
+    "ascending": [
+      {
+        "id": "S1A_IW_GRDH_1SDV_20230716T125521_20230716T125550_049449_05F23F_rtc",
+        "datetime": "2023-07-16T12:55:35.620884Z"
+      },
+      {
+        "id": "S1A_IW_GRDH_1SDV_20230728T125521_20230728T125550_049624_05F79E_rtc",
+        "datetime": "2023-07-28T12:55:36.177054Z"
+      }
+    ],
+    "descending": [
+      {
+        "id": "S1A_IW_GRDH_1SDV_20230712T005233_20230712T005258_049383_05F03C_rtc",
+        "datetime": "2023-07-12T00:52:45.928829Z"
+      },
+      {
+        "id": "S1A_IW_GRDH_1SDV_20230724T005234_20230724T005259_049558_05F58F_rtc",
+        "datetime": "2023-07-24T00:52:46.688074Z"
+      }
+    ]
+  },
+  "classification": {
+    "diagnostics": [
+      {
+        "orbit": "ascending",
+        "z_threshold": 1.5,
+        "usable_frac": 0.982,
+        "item": "S1A_IW_GRDH_1SDV_20230716T125521_20230716T125550_049449_05F23F_rtc",
+        "datetime": "2023-07-16T12:55:35.620884Z"
+      },
+      {
+        "orbit": "ascending",
+        "z_threshold": 1.5,
+        "usable_frac": 0.982,
+        "item": "S1A_IW_GRDH_1SDV_20230728T125521_20230728T125550_049624_05F79E_rtc",
+        "datetime": "2023-07-28T12:55:36.177054Z"
+      },
+      {
+        "orbit": "descending",
+        "z_threshold": 1.5,
+        "usable_frac": 1.0,
+        "item": "S1A_IW_GRDH_1SDV_20230712T005233_20230712T005258_049383_05F03C_rtc",
+        "datetime": "2023-07-12T00:52:45.928829Z"
+      },
+      {
+        "orbit": "descending",
+        "z_threshold": 1.5,
+        "usable_frac": 1.0,
+        "item": "S1A_IW_GRDH_1SDV_20230724T005234_20230724T005259_049558_05F58F_rtc",
+        "datetime": "2023-07-24T00:52:46.688074Z"
+      }
+    ],
+    "vh_abs_cap_db": -17.0,
+    "min_baseline_scenes": 3,
+    "skipped_items": []
+  },
+  "permanent_water": {
+    "pixels": 51632,
+    "area_km2": 35.04
+  },
+  "flood_new_inundation": {
+    "pixels": 48661,
+    "area_km2": 33.024
+  },
+  "flood_polygon_count": 181,
+  "largest_flood_polys_km2": [
+    5.5162,
+    3.9619,
+    3.6835,
+    3.4047,
+    3.2299,
+    2.3842,
+    1.7759,
+    0.5926,
+    0.4877,
+    0.4275
+  ],
+  "processing": {
+    "sensor": "Sentinel-1 C-SAR RTC gamma-0 (VH)",
+    "provider": "Microsoft Planetary Computer",
+    "method": "same-orbit per-pixel dB change vs dry-season baseline; Otsu on z with absolute darkness cap",
+    "grid_res_m": 27.8,
+    "read_level": "COG overview 1 (~20 m)",
+    "min_poly_ha": 0.5
+  },
+  "runtime_s": 271.0,
+  "population_exposure": {
+    "exposed_people": 176396,
+    "aoi_population": 41619244,
+    "exposed_pct": 0.424,
+    "source": "Meta Data for Good HRSL population v1.5 (~30 m), CC-BY 4.0"
+  },
+  "artifacts": {
+    "flood_geojson_kb": 159.8,
+    "perm_geojson_kb": 365.7,
+    "qa_png": "qa_triptych.png"
+  }
+}

@@ -14,7 +14,7 @@ API: `/api/events` · `/api/events/{id}/flood.geojson`
 |---|---|
 | 🛰️ **Input** | Copernicus Sentinel-1 RTC gamma-0 (VH, 10 m) via [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com/dataset/sentinel-1-rtc) — free, no auth keys |
 | 🧮 **Method** | Same-orbit per-pixel dB change vs a Feb–Mar dry-season baseline → Otsu threshold on the z-histogram + absolute darkness cap → morphology cleanup |
-| 🗺️ **Output** | Vectorized new-inundation polygons, permanent-water layer, km² stats, WorldPop population exposure |
+| 🗺️ **Output** | Vectorized new-inundation polygons, permanent-water layer, km² stats, HRSL population exposure |
 | ⏱️ **Refresh** | `scripts/refresh_latest.py` — run via cron/GitHub Actions to append the newest pass automatically |
 | 💰 **Cost** | ₹0 — free satellite data, Vercel free tier |
 
@@ -31,7 +31,7 @@ baseline makes the flood extent pop out statistically.
 ```
 scripts/discover_scenes.py   STAC search → scene inventory (data/stac_discovery.json)
 scripts/pipeline.py          fetch (COG overview reads + npz cache) → z-score change
-                             detection → vectorize → WorldPop exposure → QA triptych
+                             detection → vectorize → population exposure → QA triptych
 scripts/run_events.py        event driver (auto dry-season baselines per orbit)
 scripts/refresh_latest.py    incremental: newest pass → new event folder + index update
 api/index.py                 FastAPI serving committed GeoJSON (Vercel serverless)
@@ -79,7 +79,7 @@ The frontend auto-detects same-origin API in production.
 
 - Contains modified Copernicus Sentinel data [2023–2026], processed by ESA
   (`sentinel-1-rtc` collection) — distributed via Microsoft Planetary Computer.
-- Population: WorldPop 2020 constrained (CC-BY 4.0).
+- Population: Meta Data for Good HRSL v1.5 (CC-BY 4.0).
 - Basemap © OpenStreetMap contributors © CARTO.
 
 > ⚠️ Research/demo product — not an official flood warning. Cross-check CWC
