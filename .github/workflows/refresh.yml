@@ -1,0 +1,39 @@
+name: daily-refresh
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # ~08:47 IST daily, after the morning ascending pass
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install geo deps
+        run: |
+          pip install rasterio shapely pyproj scipy numpy httpx matplotlib
+
+      - name: Map newest Sentinel-1 pass
+        run: python scripts/refresh_latest.py
+
+      - name: Commit new artifacts
+        run: |
+          git config user.name "flood-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/events data/events_index.json
+          if git diff --cached --quiet; then
+            echo "No new scene — nothing to commit"
+          else
+            git commit -m "auto: flood map refresh $(date -u +%F)"
+            git push
+          fi

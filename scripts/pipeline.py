@@ -84,45 +84,53 @@ def get_item(item_id: str) -> dict:
 
 
 # --------------------------------------------------------------- scene fetch
-def _fetch_dn_decimated(href: str) -> tuple[np.ndarray, Affine]:
+def _fetch_dn_decimated(href: str) -> tuple[np.ndarray, Affine, object]:
     """Windowed native-CRS read at overview level 2, with retries.
 
-    Returns (DN array, affine of that array in EPSG:32643).
+    Returns (DN array, affine, CRS) — CRS read from the file itself because
+    RTC products may land in either UTM zone covering Delhi.
     """
-    tr = Transformer.from_crs("EPSG:4326", "EPSG:32643", always_xy=True)
-    x0, y0 = tr.transform(CORRIDOR_BOUNDS[0], CORRIDOR_BOUNDS[1])
-    x1, y1 = tr.transform(CORRIDOR_BOUNDS[2], CORRIDOR_BOUNDS[3])
-    pad = 1000.0
-    ux0, ux1 = min(x0, x1) - pad, max(x0, x1) + pad
-    uy0, uy1 = min(y0, y1) - pad, max(y0, y1) + pad
     sep = "&" if "?" in href else "?"
     url = f"/vsicurl/{href}{sep}{_sas_token()}"
     last_err: Exception | None = None
     for attempt in range(READ_ATTEMPTS):
         try:
             with rasterio.open(url) as src:
+                tr = Transformer.from_crs("EPSG:4326", src.crs, always_xy=True)
+                x0, y0 = tr.transform(CORRIDOR_BOUNDS[0], CORRIDOR_BOUNDS[1])
+                x1, y1 = tr.transform(CORRIDOR_BOUNDS[2], CORRIDOR_BOUNDS[3])
+                pad = 1000.0
+                ux0, ux1 = min(x0, x1) - pad, max(x0, x1) + pad
+                uy0, uy1 = min(y0, y1) - pad, max(y0, y1) + pad
                 win = rasterio.windows.from_bounds(ux0, uy0, ux1, uy1,
                                                    src.transform)
-                win = win.round_offsets().round_lengths()
-                w_px = round(win.width // DECIMATE)
-                h_px = round(win.height // DECIMATE)
+                # clamp to the raster: padded windows can poke past the edge
+                full = rasterio.windows.Window(0, 0, src.width, src.height)
+                win = win.intersection(full).round_offsets().round_lengths()
+                if win.width < 4 or win.height < 4:
+                    raise ValueError("corridor outside scene footprint")
+                w_px = max(2, round(win.width // DECIMATE))
+                h_px = max(2, round(win.height // DECIMATE))
                 dn = src.read(1, window=win, out_shape=(h_px, w_px),
                               resampling=Resampling.bilinear).astype("float32")
                 tf = src.window_transform(win) * Affine.scale(
                     win.width / w_px, win.height / h_px)
+                crs = src.crs
             dn[dn == -32768.0] = np.nan
             dn[dn <= 0] = np.nan
-            return dn, tf
+            return dn, tf, crs
         except Exception as e:  # transient /vsicurl failures happen
             last_err = e
+            if "outside scene footprint" in str(e):
+                raise  # deterministic — no point retrying
             time.sleep(5 * (attempt + 1))
     raise RuntimeError(
         f"read failed after {READ_ATTEMPTS} attempts: {href[:80]}") from last_err
 
 
-def _to_grid(dn: np.ndarray, src_tf: Affine) -> np.ndarray:
+def _to_grid(dn: np.ndarray, src_tf: Affine, src_crs) -> np.ndarray:
     dst = np.full((GRID_HEIGHT, GRID_WIDTH), np.nan, dtype="float32")
-    rio_reproject(dn, dst, src_transform=src_tf, src_crs="EPSG:32643",
+    rio_reproject(dn, dst, src_transform=src_tf, src_crs=src_crs,
                   src_nodata=np.nan, dst_transform=GRID_TRANSFORM,
                   dst_crs="EPSG:4326", dst_nodata=np.nan,
                   resampling=Resampling.bilinear)
@@ -139,8 +147,8 @@ def fetch_band(item_id: str, band: str = BAND) -> tuple[np.ndarray, np.ndarray, 
     item = get_item(item_id)
     href = item["assets"][band]["href"]
     dt = item["properties"].get("datetime", "")
-    dn, tf = _fetch_dn_decimated(href)
-    grid = _to_grid(dn, tf)
+    dn, tf, crs = _fetch_dn_decimated(href)
+    grid = _to_grid(dn, tf, crs)
     valid = np.isfinite(grid)
     db = np.full(grid.shape, np.nan, dtype="float32")
     db[valid] = 10.0 * np.log10(grid[valid])
@@ -366,8 +374,11 @@ def process_event(spec: EventSpec, out_dir: Path,
     diags, evt_meta = [], {}
     for orb, ids in sorted(evt_groups.items()):
         base = next((b for b in bases if b.orbit == orb), None)
-        if base is None:  # fall back to any baseline (better than dropping)
-            base = bases[0]
+        if base is None:
+            print(f"WARN no {orb} baseline — skipping {len(ids)} event scene(s)",
+                  flush=True)
+            failed_items += ids
+            continue
         got = fetch_many(ids)
         ids_ok = [i for i in ids if i in got]
         for iid in ids_ok:

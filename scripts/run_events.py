@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from pipeline import EventSpec, process_event  # noqa: E402
+from pipeline import EventSpec, get_item, process_event  # noqa: E402
 import httpx  # noqa: E402
 
 STAC = "https://planetarycomputer.microsoft.com/api/stac/v1"
@@ -37,14 +37,48 @@ def search(year: int, lo: str, hi: str) -> list[dict]:
     return sorted(out, key=lambda s: s["dt"])
 
 
-def auto_baseline(year: int, max_scenes: int = 4) -> list[str]:
-    """Dry-season scenes (Feb-Mar) of the event year, spread through the window."""
+def auto_baseline(year: int, per_orbit: int = 4) -> list[str]:
+    """Dry-season scenes (Feb-Mar) that FULLY contain the corridor,
+    grouped per orbit direction (ascending/descending never mix),
+    spread through the window."""
+    import datetime as dtdt
+
+    def orbit_state(item_id):
+        try:
+            return get_item(item_id)["properties"].get("sat:orbit_state", "?")
+        except Exception:
+            return "?"
+
     scenes = search(year, "02-01", "03-31")
-    if not scenes:
-        raise RuntimeError(f"no dry-season scenes for {year}")
-    picks = [scenes[0], scenes[len(scenes) // 3],
-             scenes[2 * len(scenes) // 3], scenes[-1]][:max_scenes]
-    return list(dict.fromkeys(p["id"] for p in picks))
+    lo, bo, hi_, up = 77.04, 28.42, 77.39, 28.74
+
+    def contains(b):
+        return b[0] <= lo + 0.005 and b[1] <= bo + 0.005 \
+            and b[2] >= hi_ - 0.005 and b[3] >= up - 0.005
+
+    good = [s for s in scenes if contains(_bbox_of(s["id"]))]
+    by_orbit: dict[str, list[dict]] = {}
+    for s in good:
+        by_orbit.setdefault(orbit_state(s["id"]), []).append(s)
+    picks: list[str] = []
+    for orb, ss in sorted(by_orbit.items()):
+        ss.sort(key=lambda x: x["dt"])
+        sel = [ss[0], ss[len(ss) // 3], ss[2 * len(ss) // 3], ss[-1]]
+        picks += list(dict.fromkeys(p["id"] for p in sel))[:per_orbit]
+        print(f"  baseline[{orb}] {year}: "
+              f"{[p['dt'][5:10] for p in dict.fromkeys(sel).keys()]}")
+    if not picks:
+        raise RuntimeError(f"no full-cover dry-season scenes for {year}")
+    return picks
+
+
+def _bbox_of(item_id: str) -> list[float]:
+    disc = json.load(open(ROOT / "data" / "stac_discovery.json"))
+    for scenes in disc.values():
+        for s in scenes:
+            if s["id"] == item_id:
+                return s["bbox"]
+    return get_item(item_id)["bbox"]
 
 
 def _norm(s: str) -> str:
