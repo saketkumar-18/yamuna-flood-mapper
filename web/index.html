@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Yamuna Flood Mapper · Sentinel-1 SAR</title>
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:#0b0f14; --panel:#11161d; --panel2:#161d26; --line:#1f2833;
+    --text:#dbe4ee; --dim:#7d8b9a; --red:#ff4d1c; --blue:#3f8cff;
+    --accent:#ffb01c; --mono:'SFMono-Regular',Consolas,'Liberation Mono',monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0 }
+  html,body { height:100% }
+  body { background:var(--bg); color:var(--text);
+         font:14px/1.45 -apple-system,'Segoe UI',Roboto,sans-serif; overflow:hidden }
+  #app { display:grid; grid-template-columns:330px 1fr; height:100vh }
+  aside { background:var(--panel); border-right:1px solid var(--line);
+          display:flex; flex-direction:column; overflow-y:auto; z-index:5 }
+  header { padding:18px 16px 12px; border-bottom:1px solid var(--line) }
+  h1 { font-size:17px; font-weight:700; letter-spacing:.2px }
+  h1 span { color:var(--red) }
+  .sub { color:var(--dim); font-size:11.5px; margin-top:4px }
+  section { padding:14px 16px; border-bottom:1px solid var(--line) }
+  .label { font-size:10px; text-transform:uppercase; letter-spacing:1.2px;
+           color:var(--dim); margin-bottom:8px }
+  .event-btn { display:block; width:100%; text-align:left; background:var(--panel2);
+               border:1px solid var(--line); color:var(--text); padding:10px 12px;
+               border-radius:8px; cursor:pointer; margin-bottom:8px; font-size:13px }
+  .event-btn:hover { border-color:#33414f }
+  .event-btn.active { border-color:var(--red); background:#1a1210 }
+  .event-btn small { color:var(--dim); display:block; margin-top:3px; font-size:11px }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:8px }
+  .stat { background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+          padding:10px }
+  .stat b { font-size:19px; font-family:var(--mono); display:block }
+  .stat i { font-style:normal; color:var(--dim); font-size:10.5px }
+  .stat.flood b { color:var(--red) } .stat.water b { color:var(--blue) }
+  .stat.pop b { color:var(--accent) }
+  .legend-row { display:flex; align-items:center; gap:8px; margin-bottom:6px;
+                font-size:12.5px }
+  .sw { width:14px; height:14px; border-radius:3px; flex:none }
+  .toggle { display:flex; align-items:center; gap:8px; margin-bottom:8px;
+            font-size:13px; cursor:pointer; user-select:none }
+  .toggle input { accent-color:var(--red) }
+  select { width:100%; background:var(--panel2); color:var(--text);
+           border:1px solid var(--line); border-radius:8px; padding:8px;
+           font-size:12.5px }
+  .credit { color:var(--dim); font-size:10.5px; line-height:1.5 }
+  .credit a { color:#5b8db8; text-decoration:none }
+  #mapWrap { position:relative }
+  #map { position:absolute; inset:0 }
+  .maplibregl-ctrl-attrib { background:rgba(11,15,20,.8)!important; color:var(--dim)!important }
+  .maplibregl-ctrl-attrib a { color:#8fb3d4!important }
+  #statusbar { position:absolute; top:10px; left:10px; right:10px; z-index:4;
+               display:flex; gap:8px; pointer-events:none }
+  .pill { pointer-events:auto; background:rgba(17,22,29,.92); border:1px solid var(--line);
+          border-radius:999px; padding:6px 12px; font-size:11.5px; color:var(--dim) }
+  .pill b { color:var(--text); font-weight:600 }
+  #loading { position:absolute; inset:0; display:flex; align-items:center;
+             justify-content:center; background:rgba(11,15,20,.65); z-index:10;
+             flex-direction:column; gap:12px; transition:opacity .3s }
+  #loading.hide { opacity:0; pointer-events:none }
+  .spin { width:26px; height:26px; border:3px solid var(--line);
+          border-top-color:var(--red); border-radius:50%; animation:s 1s linear infinite }
+  @keyframes s { to { transform:rotate(360deg) } }
+  @media(max-width:800px){ #app{grid-template-columns:1fr; grid-template-rows:46vh 54vh}
+    aside{order:2; border-right:none; border-top:1px solid var(--line)} }
+</style>
+</head>
+<body>
+<div id="app">
+<aside>
+  <header>
+    <h1>Yamuna <span>Flood Mapper</span></h1>
+    <div class="sub">Sentinel-1 SAR change detection · Delhi corridor<br/>
+    77.04–77.39°E, 28.42–28.74°N</div>
+  </header>
+
+  <section>
+    <div class="label">Flood event</div>
+    <div id="events"></div>
+  </section>
+
+  <section>
+    <div class="label">Inundation</div>
+    <div class="stats">
+      <div class="stat flood"><b id="s-flood">—</b><i>new flood km²</i></div>
+      <div class="stat water"><b id="s-perm">—</b><i>permanent water km²</i></div>
+      <div class="stat"><b id="s-polys">—</b><i>flood polygons</i></div>
+      <div class="stat pop"><b id="s-pop">—</b><i>people exposed</i></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">Passes used</div>
+    <select id="passSel" size="1"></select>
+  </section>
+
+  <section>
+    <div class="label">Layers</div>
+    <label class="toggle"><input type="checkbox" id="lyrFlood" checked/> Flood extent (new inundation)</label>
+    <label class="toggle"><input type="checkbox" id="lyrPerm" checked/> Permanent water</label>
+    <div class="legend-row" style="margin-top:8px">
+      <span class="sw" style="background:#ff4d1c"></span> new flood water
+    </div>
+    <div class="legend-row">
+      <span class="sw" style="background:#2f7fe0"></span> permanent water (dry season)
+    </div>
+  </section>
+
+  <section style="margin-top:auto">
+    <div class="label">Data &amp; method</div>
+    <div class="credit">
+      Copernicus Sentinel-1 RTC gamma-0 via
+      <a href="https://planetarycomputer.microsoft.com" target="_blank">Microsoft Planetary Computer</a>.
+      VH backscatter, same-orbit dB change vs Feb–Mar baseline,
+      Otsu-thresholded + darkness cap. Population:
+      <a href="https://www.worldpop.org/" target="_blank">WorldPop 2020</a>.
+      Not an official warning product.
+    </div>
+  </section>
+</aside>
+
+<div id="mapWrap">
+  <div id="map"></div>
+  <div id="statusbar">
+    <div class="pill" id="pillEvent">loading…</div>
+    <div class="pill" id="pillPass"></div>
+  </div>
+  <div id="loading"><div class="spin"></div><div style="color:var(--dim)">processing SAR scenes…</div></div>
+</div>
+</div>
+
+<script>
+const API = location.origin.includes('localhost') || location.port === '3000'
+  ? 'http://localhost:8000' : '';
+const BOUNDS = [77.04, 28.42, 77.39, 28.74];
+
+const map = new maplibregl.Map({
+  container:'map',
+  style:{ version:8, sources:{
+    dark:{ type:'raster', tiles:[
+      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+      'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'],
+      tileSize:256, attribution:'© OpenStreetMap contributors © CARTO' }},
+    layers:[{ id:'dark', type:'raster', source:'dark' }]},
+  center:[77.21, 28.58], zoom:11.4, attributionControl:true });
+map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-right');
+
+let EVENTS=[], CURRENT=null;
+
+async function boot(){
+  try{
+    const r = await fetch(API+'/api/events'); 
+    if(!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    EVENTS = j.events;
+  }catch(e){
+    document.getElementById('loading').innerHTML =
+      '<div style="color:#ff8873;max-width:280px;text-align:center">'+
+      'API unreachable. Run the pipeline (<code>python scripts/run_events.py</code>) '+
+      'and serve <code>api/index.py</code>, or redeploy.</div>';
+    return;
+  }
+  const box = document.getElementById('events');
+  for(const e of EVENTS){
+    const b=document.createElement('button');
+    b.className='event-btn'; b.dataset.id=e.event_id;
+    const d=(e.event_times_utc&&e.event_times_utc[0]||'').slice(0,10);
+    b.innerHTML=`${e.label}<small>${e.flood_new_inundation?.area_km2??'?'} km² flooded · ${d}</small>`;
+    b.onclick=()=>select(e.event_id);
+    box.appendChild(b);
+  }
+  select(EVENTS[0]?.event_id);
+}
+
+async function select(id){
+  CURRENT=id;
+  document.querySelectorAll('.event-btn').forEach(b=>
+    b.classList.toggle('active', b.dataset.id===id));
+  document.getElementById('loading').classList.remove('hide');
+  try{
+    const [meta, flood, perm] = await Promise.all([
+      fetch(`${API}/api/events/${id}`).then(r=>r.json()),
+      fetch(`${API}/api/events/${id}/flood.geojson`).then(r=>r.json()),
+      fetch(`${API}/api/events/${id}/permanent-water.geojson`).then(r=>r.json()),
+    ]);
+    render(meta, flood, perm);
+  }catch(e){ console.error(e); }
+  document.getElementById('loading').classList.add('hide');
+}
+
+function render(meta, flood, perm){
+  const f=meta.flood_new_inundation||{}, p=meta.population_exposure||{};
+  document.getElementById('s-flood').textContent=(f.area_km2??0).toFixed(1);
+  document.getElementById('s-perm').textContent=
+    (meta.permanent_water?.area_km2??0).toFixed(1);
+  document.getElementById('s-polys').textContent=meta.flood_polygon_count??0;
+  document.getElementById('s-pop').textContent=
+    p.exposed_people!=null ? p.exposed_people.toLocaleString() : '—';
+  document.getElementById('pillEvent').innerHTML=
+    `<b>${meta.label}</b>`;
+  
+  // passes dropdown
+  const sel=document.getElementById('passSel'); sel.innerHTML='';
+  const times=[...new Set((meta.event_items_by_orbit?Object.values(meta.event_items_by_orbit):[])
+    .flat().map(x=>x.datetime))].sort();
+  for(const t of times){
+    const o=document.createElement('option');
+    o.textContent=new Date(t).toUTCString().slice(5,22)+' UTC';
+    o.value=t; sel.appendChild(o);
+  }
+  const first=times[0]||'';
+  sel.onchange=()=>document.getElementById('pillPass').innerHTML=
+    `scene <b>${new Date(sel.value).toUTCString().slice(5,22)} UTC</b>`;
+  document.getElementById('pillPass').innerHTML=
+    times.length?`scene <b>${new Date(first).toUTCString().slice(5,22)} UTC</b>`:'';
+
+  for(const [name,data,color] of [['flood',flood,'#ff4d1c'],['perm',perm,'#2f7fe0']]){
+    if(map.getLayer(name)) map.removeLayer(name);
+    if(map.getSource(name)) map.removeSource(name);
+    map.addSource(name,{type:'geojson',data});
+    map.addLayer({ id:name, type:'fill', source:name,
+      paint:{ 'fill-color':color, 'fill-opacity':name==='flood'?0.55:0.75 }});
+    map.addLayer({ id:name+'-line', type:'line', source:name,
+      paint:{ 'line-color':color, 'line-width':name==='flood'?1:0.6, 'line-opacity':0.9 }});
+  }
+
+  const applyToggles=()=>{
+    ['flood','perm'].forEach(n=>{
+      const vis=document.getElementById(n==='flood'?'lyrFlood':'lyrPerm')
+        .checked?'visible':'none';
+      if(map.getLayer(n)) map.setLayoutProperty(n,'visibility',vis);
+      if(map.getLayer(n+'-line')) map.setLayoutProperty(n+'-line','visibility',vis);
+    });
+  };
+  document.getElementById('lyrFlood').onchange=applyToggles;
+  document.getElementById('lyrPerm').onchange=applyToggles;
+  applyToggles();
+}
+
+map.on('load',()=>{
+  map.fitBounds(BOUNDS,{padding:40,duration:0});
+  boot();
+});
+</script>
+</body>
+</html>
