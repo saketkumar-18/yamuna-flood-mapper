@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-28T15:19:45.657811+00:00",
+  "generated": "2026-09-02T07:53:31.028891+00:00",
   "events": [
     {
       "event_id": "flood-2023-07",
@@ -118,8 +118,8 @@
       }
     },
     {
-      "event_id": "pass-20260827-00",
-      "label": "Latest pass 2026-08-27T00:43Z \u2014 auto-refresh",
+      "event_id": "pass-20260901-00",
+      "label": "Latest pass 2026-09-01T00:51Z \u2014 auto-refresh",
       "baseline_items_by_orbit": {
         "ascending": [
           "S1A_IW_GRDH_1SDV_20260125T125503_20260125T125532_062924_07E4C2_rtc",
@@ -137,8 +137,8 @@
       "event_items_by_orbit": {
         "descending": [
           {
-            "id": "S1D_IW_GRDH_1SDV_20260827T004329_20260827T004354_004304_007EDF_rtc",
-            "datetime": "2026-08-27T00:43:41.854571Z"
+            "id": "S1D_IW_GRDH_1SDV_20260901T005135_20260901T005200_004377_008165_rtc",
+            "datetime": "2026-09-01T00:51:48.078455Z"
           }
         ]
       },
@@ -147,30 +147,30 @@
         "area_km2": 33.986
       },
       "flood_new_inundation": {
-        "pixels": 4963,
-        "area_km2": 3.368
+        "pixels": 10628,
+        "area_km2": 7.213
       },
-      "flood_polygon_count": 55,
+      "flood_polygon_count": 150,
       "largest_flood_polys_km2": [
-        0.4686,
-        0.3826,
-        0.2887,
-        0.2354,
-        0.2345,
-        0.1926,
-        0.1871,
-        0.1736,
-        0.0847,
-        0.0801
+        0.669,
+        0.4204,
+        0.4022,
+        0.354,
+        0.2785,
+        0.2775,
+        0.2286,
+        0.2257,
+        0.2215,
+        0.2159
       ],
       "classification": {
         "diagnostics": [
           {
             "orbit": "descending",
             "z_threshold": 1.5,
-            "usable_frac": 0.334,
-            "item": "S1D_IW_GRDH_1SDV_20260827T004329_20260827T004354_004304_007EDF_rtc",
-            "datetime": "2026-08-27T00:43:41.854571Z"
+            "usable_frac": 1.0,
+            "item": "S1D_IW_GRDH_1SDV_20260901T005135_20260901T005200_004377_008165_rtc",
+            "datetime": "2026-09-01T00:51:48.078455Z"
           }
         ],
         "vh_abs_cap_db": -17.0,
@@ -185,15 +185,15 @@
         "read_level": "COG overview 1 (~20 m)",
         "min_poly_ha": 0.5
       },
-      "runtime_s": 20.7,
+      "runtime_s": 22.1,
       "population_exposure": {
-        "exposed_people": 1278,
+        "exposed_people": 14868,
         "aoi_population": 41619244,
-        "exposed_pct": 0.003,
+        "exposed_pct": 0.036,
         "source": "Meta Data for Good HRSL population v1.5 (~30 m), CC-BY 4.0"
       },
       "artifacts": {
-        "flood_geojson_kb": 36.0,
+        "flood_geojson_kb": 74.2,
         "perm_geojson_kb": 345.2,
         "qa_png": "qa_triptych.png"
       }
