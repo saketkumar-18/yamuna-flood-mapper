@@ -1,0 +1,81 @@
+{
+  "event_id": "pass-20260913-00",
+  "label": "Latest pass 2026-09-13T00:51Z \u2014 auto-refresh",
+  "baseline_items_by_orbit": {
+    "ascending": [
+      "S1A_IW_GRDH_1SDV_20260125T125503_20260125T125532_062924_07E4C2_rtc",
+      "S1A_IW_GRDH_1SDV_20260218T125502_20260218T125531_063274_07F1ED_rtc",
+      "S1A_IW_GRDH_1SDV_20260314T125502_20260314T125531_063624_07FF41_rtc",
+      "S1A_IW_GRDH_1SDV_20260407T125502_20260407T125531_063974_080C4A_rtc"
+    ],
+    "descending": [
+      "S1A_IW_GRDH_1SDV_20260121T005216_20260121T005241_062858_07E290_rtc",
+      "S1A_IW_GRDH_1SDV_20260214T005215_20260214T005240_063208_07EF72_rtc",
+      "S1A_IW_GRDH_1SDV_20260310T005215_20260310T005240_063558_07FCC0_rtc",
+      "S1A_IW_GRDH_1SDV_20260403T005215_20260403T005240_063908_0809CA_rtc"
+    ]
+  },
+  "event_items_by_orbit": {
+    "descending": [
+      {
+        "id": "S1D_IW_GRDH_1SDV_20260913T005136_20260913T005201_004552_008782_rtc",
+        "datetime": "2026-09-13T00:51:48.608202Z"
+      }
+    ]
+  },
+  "classification": {
+    "diagnostics": [
+      {
+        "orbit": "descending",
+        "z_threshold": 1.5,
+        "usable_frac": 1.0,
+        "item": "S1D_IW_GRDH_1SDV_20260913T005136_20260913T005201_004552_008782_rtc",
+        "datetime": "2026-09-13T00:51:48.608202Z"
+      }
+    ],
+    "vh_abs_cap_db": -17.0,
+    "min_baseline_scenes": 3,
+    "skipped_items": []
+  },
+  "permanent_water": {
+    "pixels": 50079,
+    "area_km2": 33.986
+  },
+  "flood_new_inundation": {
+    "pixels": 7578,
+    "area_km2": 5.143
+  },
+  "flood_polygon_count": 114,
+  "largest_flood_polys_km2": [
+    0.7943,
+    0.3497,
+    0.2704,
+    0.1825,
+    0.1719,
+    0.1715,
+    0.1566,
+    0.1384,
+    0.1261,
+    0.1221
+  ],
+  "processing": {
+    "sensor": "Sentinel-1 C-SAR RTC gamma-0 (VH)",
+    "provider": "Microsoft Planetary Computer",
+    "method": "same-orbit per-pixel dB change vs dry-season baseline; Otsu on z with absolute darkness cap",
+    "grid_res_m": 27.8,
+    "read_level": "COG overview 1 (~20 m)",
+    "min_poly_ha": 0.5
+  },
+  "runtime_s": 20.5,
+  "population_exposure": {
+    "exposed_people": 8059,
+    "aoi_population": 41619244,
+    "exposed_pct": 0.019,
+    "source": "Meta Data for Good HRSL population v1.5 (~30 m), CC-BY 4.0"
+  },
+  "artifacts": {
+    "flood_geojson_kb": 52.9,
+    "perm_geojson_kb": 345.2,
+    "qa_png": "qa_triptych.png"
+  }
+}
